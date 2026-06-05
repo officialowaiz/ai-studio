@@ -9,6 +9,7 @@ type Profile = {
   full_name: string;
   plan_type: "free" | "pro" | "premium";
   token_balance: number;
+  total_generations?: number;
 };
 
 type UserContextType = {

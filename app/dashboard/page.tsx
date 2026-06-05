@@ -170,6 +170,7 @@ export default function MorphGridDashboard() {
 
   // Set clean fallbacks while the database profile loads
   const tokens = profile?.token_balance ?? 0;
+  const totalGens = profile?.total_generations ?? 0;
   const userPlan = profile?.plan_type ?? "free";
 
   const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
