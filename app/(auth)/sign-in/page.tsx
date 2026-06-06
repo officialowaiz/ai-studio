@@ -1,49 +1,49 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, Suspense, useCallback } from "react";
 import SearchParamsHandler from "./SearchParamsHandler";
 import Link from "next/link";
 import { sendOtp, verifyOtpAndCheckProfile, completeOnboarding, signInWithGoogle } from "@/app/actions/auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation"; // Removed useSearchParams from here!
+
 import {
   ArrowRight, Mail, ShieldCheck, Zap, ArrowLeft,
   User, Briefcase, GraduationCap, Building2, CheckSquare
 } from "lucide-react";
+
+// Tells Next.js not to statically render this page
+export const dynamic = "force-dynamic";
 
 type AuthStep = "initial" | "otp" | "name" | "role" | "terms";
 type UserRole = "student" | "professional" | "business" | "other" | null;
 
 export default function AdvancedAuthPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const handleParams = useCallback((step: string | null, userId: string | null, email: string | null) => {
-    if (step === 'name' && userId) {
-      setUserId(userId);
-      if (email) setEmail(email);
-      setAuthStep('name');
-      setIsProcessing(false);
-    }
-  }, []);
+  // 1. STATE MUST BE DEFINED FIRST
+  const [authStep, setAuthStep] = useState<AuthStep>("initial");
+  const [isNewUser, setIsNewUser] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  // Form Data
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [selectedRole, setSelectedRole] = useState<UserRole>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  const searchParamsString = searchParams.toString();
-
-  useEffect(() => {
-    // Now we use the string version
-    const params = new URLSearchParams(searchParamsString);
-    const step = params.get('step');
-    const incomingUserId = params.get('userId');
-    const incomingEmail = params.get('email');
-
+  // 2. NOW WE CAN USE THE HANDLER (Because state is defined above)
+  const handleParams = useCallback((step: string | null, incomingUserId: string | null, incomingEmail: string | null) => {
     if (step === 'name' && incomingUserId) {
       setUserId(incomingUserId);
       if (incomingEmail) setEmail(incomingEmail);
       setAuthStep('name');
       setIsProcessing(false);
     }
-  }, [searchParamsString]);
+  }, []); // Empty dependency array is correct here
 
-  // Google Login Handler
+  // 3. GOOGLE LOGIN HANDLER
   const handleGoogleLogin = async () => {
     setIsProcessing(true);
     const response = await signInWithGoogle();
@@ -57,20 +57,8 @@ export default function AdvancedAuthPage() {
     }
   };
 
-  // State Management
-  const [authStep, setAuthStep] = useState<AuthStep>("initial");
-  const [isNewUser, setIsNewUser] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Form Data
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>(null);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-
+  // --- FORM SUBMISSION HANDLERS ---
+  
   // 1. Initial Email Submission
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
