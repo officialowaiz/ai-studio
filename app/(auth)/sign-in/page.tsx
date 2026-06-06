@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, useCallback } from "react";
+import SearchParamsHandler from "./SearchParamsHandler";
 import Link from "next/link";
 import { sendOtp, verifyOtpAndCheckProfile, completeOnboarding, signInWithGoogle } from "@/app/actions/auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,19 +17,31 @@ export default function AdvancedAuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Listen for the Google Callback redirect
-  useEffect(() => {
-    const step = searchParams.get('step');
-    const incomingUserId = searchParams.get('userId');
-    const incomingEmail = searchParams.get('email'); // Get email from URL
-
-    if (step === 'name' && incomingUserId) {
-      setUserId(incomingUserId);
-      if (incomingEmail) setEmail(incomingEmail); // Set the email state
+  const handleParams = useCallback((step: string | null, userId: string | null, email: string | null) => {
+    if (step === 'name' && userId) {
+      setUserId(userId);
+      if (email) setEmail(email);
       setAuthStep('name');
       setIsProcessing(false);
     }
-  }, [searchParams]);
+  }, []);
+
+  const searchParamsString = searchParams.toString();
+
+  useEffect(() => {
+    // Now we use the string version
+    const params = new URLSearchParams(searchParamsString);
+    const step = params.get('step');
+    const incomingUserId = params.get('userId');
+    const incomingEmail = params.get('email');
+
+    if (step === 'name' && incomingUserId) {
+      setUserId(incomingUserId);
+      if (incomingEmail) setEmail(incomingEmail);
+      setAuthStep('name');
+      setIsProcessing(false);
+    }
+  }, [searchParamsString]);
 
   // Google Login Handler
   const handleGoogleLogin = async () => {
@@ -129,6 +142,11 @@ export default function AdvancedAuthPage() {
 
   return (
     <div className="min-h-screen bg-[#050704] text-gray-200 font-sans flex">
+
+      {/* 4. Add the Suspense boundary somewhere in your JSX (top level is fine) */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler onParams={handleParams} />
+      </Suspense>
 
       {/* --- INJECTED CSS FOR ADVANCED ANIMATIONS --- */}
       <style dangerouslySetInnerHTML={{
