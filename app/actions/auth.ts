@@ -89,12 +89,29 @@ export async function signInWithGoogle() {
     // In production, you will change this to https://upmocks.com/auth/callback
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${baseUrl}/auth/callback`,
-      },
-    });
+    // Define a helper to get the right URL whether you are local or live on Vercel
+const getURL = () => {
+  let url =
+    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
+    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+    'http://localhost:3000/'
+  
+  // Make sure to include `https://` when not localhost.
+  url = url.includes('http') ? url : `https://${url}`
+  
+  // Make sure to include a trailing `/`.
+  url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
+  return url
+}
+
+// Then use it in your function:
+const { data, error } = await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: {
+    // This tells Google exactly where to send the user after a successful login
+    redirectTo: 'https://promptno.vercel.app/auth/callback', 
+  },
+});
 
     if (error) return { success: false, error: error.message };
     
