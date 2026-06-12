@@ -81,7 +81,7 @@ const SelfieGuideModal = ({ onClose }: { onClose: () => void }) => (
 const LogoutConfirmModal = ({ onConfirm, onClose }: { onConfirm: () => void, onClose: () => void }) => (
   <div className="fixed inset-0 bg-[#050704]/90 z-[999] flex items-center justify-center backdrop-blur-xl p-4 animate-in fade-in zoom-in-95 duration-300">
     <div className="bg-[#0A0D08] border border-red-500/20 rounded-3xl p-8 max-w-sm w-full relative shadow-[0_0_80px_rgba(239,68,68,0.1)] text-center">
-      
+
       <div className="w-20 h-20 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
         <AlertTriangle size={32} className="text-red-400" />
       </div>
@@ -92,14 +92,14 @@ const LogoutConfirmModal = ({ onConfirm, onClose }: { onConfirm: () => void, onC
       </p>
 
       <div className="flex gap-3">
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="flex-1 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm transition-all border border-white/10"
         >
           Cancel
         </button>
-        <button 
-          onClick={onConfirm} 
+        <button
+          onClick={onConfirm}
           className="flex-1 py-3.5 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white font-bold text-sm transition-all border border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:shadow-[0_0_30px_rgba(239,68,68,0.4)]"
         >
           Confirm Logout
@@ -142,6 +142,7 @@ const AmbientBubbles = () => {
 };
 
 export default function MorphGridDashboard() {
+  const [selfieFileObj, setSelfieFileObj] = useState<File | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selfieFile, setSelfieFile] = useState<string | null>(null);
   const [referenceImage, setReferenceImage] = useState<any>(null);
@@ -175,102 +176,182 @@ export default function MorphGridDashboard() {
 
   const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setSelfieFile(URL.createObjectURL(file));
+    if (!file) return;
+
+    // 1. Keep the UI preview instant and snappy
+    setSelfieFile(URL.createObjectURL(file)); 
     setOutputImage(null);
+
+    // 2. Compress the image in the background using an invisible Canvas
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        
+        // Shrink the image to a maximum of 800x800 pixels
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // 3. Convert it into a highly compressed JPEG (70% quality)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], `optimized_${Date.now()}.jpg`, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            // Save the tiny, optimized file for Supabase and the AI!
+            setSelfieFileObj(compressedFile); 
+          }
+        }, "image/jpeg", 0.7); 
+      };
+    };
   };
 
-  const handleGenerate = () => {
-    if (!selfieFile || !referenceImage) return;
+  useEffect(() => {
+  if (!profile?.id) return;
 
-    // 1. Check if they have enough tokens
-    if (userPlan !== "premium" && tokens <= 0) {
-      alert("Out of tokens! Please upgrade to generate more.");
-      router.push('/pricing');
-      return;
-    }
+  console.log("🔌 Connecting STABLE Realtime...");
 
-    setIsGenerating(true); setOutputImage(null); setProgress(0); setGenerationPhase(0);
-
-    let prog = 0;
-    const timer = setInterval(() => {
-      prog += 100 / (8000 / 80);
-      setProgress(Math.min(prog, 100));
-      setGenerationPhase(Math.floor((prog / 100) * phases.length) || 0);
-
-     if (prog >= 100) {
-        clearInterval(timer);
+  const channel = supabase
+    .channel('stable_jobs_channel')
+    .on('postgres_changes', {
+      event: 'UPDATE', // ⚠️ ONLY listen to updates! Ignores the crash-causing INSERTs.
+      schema: 'public',
+      table: 'generation_jobs',
+      // We removed the filter to bypass any Replica Identity bugs
+    }, (payload) => {
+      
+      console.log("🚨 UPDATE CAUGHT:", payload);
+      const job = payload.new;
+      
+      // Manually verify it belongs to us and is finished
+      if (job?.user_id === profile.id && job?.status === 'completed' && job?.output_url) {
+        console.log("✅ JOB COMPLETED! Triggering UI update...");
         
-        // Change to async so we can talk to the database
-        setTimeout(async () => {
-          if (!profile?.id) return;
-
-        try {
-            // 1. Prepare the image (Convert your output/reference to a usable file)
-            // Note: If you are using a real AI API, you would replace this fetch
-            const response = await fetch(referenceImage.thumb);
-            const blob = await response.blob();
-            
-            // This path format '${profile.id}/...' is required by your Storage Policy!
-            const fileName = `${profile.id}/${Date.now()}.jpg`;
-
-            // 2. Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-              .from('generations')
-              .upload(fileName, blob);
-
-            if (uploadError) throw uploadError;
-
-            // 3. Get the public URL for the database
-            const { data: { publicUrl } } = supabase.storage
-              .from('generations')
-              .getPublicUrl(fileName);
-
-            // 4. SAVE TO GENERATION HISTORY with the REAL URL
-            await supabase.from("image_generations").insert({
-              user_id: profile.id,
-              style_reference: referenceImage.name,
-              image_url: publicUrl, 
-              aspect_ratio: selectedRatio.label
-            });
-
-            // 5. DEDUCT THE TOKEN
-            if (userPlan !== "premium" && tokens > 0) {
-              await supabase
-                .from("profiles")
-                .update({ 
-                  token_balance: tokens - 1,
-                  total_generations: (profile.total_generations || 0) + 1 
-                })
-                .eq("id", profile.id);
-            } else if (userPlan === "premium") {
-               await supabase
-                .from("profiles")
-                .update({ total_generations: (profile.total_generations || 0) + 1 })
-                .eq("id", profile.id);
-            }
-
-            // 6. UPDATE UI & REFRESH
-            setIsGenerating(false);
-            setOutputImage(publicUrl); // Show the uploaded image
-            setHistory(prev => [{ id: Date.now(), thumb: publicUrl, name: referenceImage.name }, ...prev.slice(0, 9)]);
-            refreshProfile();
-            
-          } catch (error) {
-            console.error("Failed to save generation:", error);
-            setIsGenerating(false);
-          }
+        setTimeout(() => {
+          setIsGenerating(false);
+          setOutputImage(job.output_url);
+          setProgress(100);
+          refreshProfile();
         }, 500);
       }
-    }, 80);
+    })
+    .subscribe((status, err) => {
+      console.log("📡 Realtime Status:", status);
+      if (err) console.error("❌ Realtime Error:", err);
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
   };
+}, [profile?.id]); // ⚠️ MUST remain exactly like this to prevent re-renders
+
+
+// 2. Replace your old handleGenerate with this new asynchronous version
+const handleGenerate = async () => {
+  // 1. Check if we have the actual file object and reference
+  if (!selfieFileObj || !referenceImage) {
+    alert("Please upload a source image and select a reference style.");
+    return;
+  }
+
+  // 2. Token Check
+  if (userPlan !== "premium" && tokens <= 0) {
+    alert("Out of tokens! Please upgrade to generate more.");
+    router.push('/pricing');
+    return;
+  }
+
+  // 3. Reset UI state for loading
+  setIsGenerating(true);
+  setOutputImage(null);
+  setProgress(0);
+  setGenerationPhase(0);
+
+  // --- UX FAKE PROGRESS TIMER ---
+  let prog = 0;
+  const uiTimer = setInterval(() => {
+    prog += 1.5; // Slightly slower to account for webhook travel time
+    if (prog <= 90) {
+      setProgress(prog);
+      setGenerationPhase(Math.floor((prog / 100) * phases.length) || 0);
+    } else {
+      // NEW: Tell the timer to shut itself off once it hits 90%
+      clearInterval(uiTimer);
+    }
+  }, 400);
+
+  try {
+    if (!profile?.id) throw new Error("Profile not found");
+
+    // --- STEP A: UPLOAD SOURCE IMAGE ---
+    const fileName = `${profile.id}/source_${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from('generations')
+      .upload(fileName, selfieFileObj);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl: sourceImageUrl } } = supabase.storage
+      .from('generations')
+      .getPublicUrl(fileName);
+
+    // --- STEP B: SUBMIT JOB ---
+    // Returns immediately with jobId, no waiting!
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceImage: sourceImageUrl,
+        styleReference: referenceImage.thumb,
+        stylePrompt: referenceImage.prompt,
+        aspectRatio: selectedRatio.label,
+        userId: profile.id,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Failed to submit job");
+    
+    // REMOVED: clearInterval(uiTimer) from here so it can keep counting to 90% while the webhook works
+
+  } catch (error) {
+    // Keep this! We still want to stop the timer if an actual network/database error occurs.
+    clearInterval(uiTimer);
+    console.error("Failed during generation sequence:", error);
+    setIsGenerating(false);
+    alert("Failed to submit. Please try again.");
+  }
+};
 
   const handleLogout = async () => {
     // 1. Tell Supabase to destroy the secure session cookie
     await supabase.auth.signOut();
-    
+
     // 2. Clear the global memory
     refreshProfile();
-    
+
     // 3. Send them back to the login screen
     router.push('/sign-in');
   };
@@ -330,7 +411,7 @@ export default function MorphGridDashboard() {
               <ImagePlus size={18} /> Explore Styles
             </button>
 
-<button 
+            <button
               onClick={() => {
                 setIsNavigatingProfile(true);
                 router.push('/profile');
@@ -374,7 +455,7 @@ export default function MorphGridDashboard() {
             <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:text-zinc-300 font-medium transition-colors">
               <Shield size={18} /> Privacy Policy
             </button>
-          <button 
+            <button
               onClick={() => setShowLogoutModal(true)}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500/80 hover:bg-red-500/10 hover:text-red-500 font-bold transition-colors"
             >
@@ -511,18 +592,18 @@ export default function MorphGridDashboard() {
             </div>
           </div>
 
-        {/* GENERATE BUTTON */}
+          {/* GENERATE BUTTON */}
           {(() => {
             const isOutOfTokens = userPlan !== "premium" && tokens <= 0;
-            
+
             return (
-              <button 
-                onClick={handleGenerate} 
+              <button
+                onClick={handleGenerate}
                 disabled={!canGenerate || isGenerating || isOutOfTokens}
                 className={`w-full py-6 rounded-2xl font-black text-xl tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-3
-                  ${isGenerating 
+                  ${isGenerating
                     ? "bg-white/5 border border-white/5 text-zinc-400 cursor-wait"
-                    : isOutOfTokens 
+                    : isOutOfTokens
                       ? "bg-red-500/10 text-red-400 border border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.1)] cursor-not-allowed"
                       : canGenerate
                         ? "bg-lime-400 hover:bg-lime-300 text-black shadow-[0_0_50px_rgba(163,230,53,0.25)] hover:shadow-[0_0_70px_rgba(163,230,53,0.4)] hover:-translate-y-1"
@@ -725,10 +806,10 @@ export default function MorphGridDashboard() {
 
       {showGuide && <SelfieGuideModal onClose={() => setShowGuide(false)} />}
       {showExplore && <ExploreModal onSelect={(img) => setReferenceImage(img)} onClose={() => setShowExplore(false)} />}
-    {showLogoutModal && (
-        <LogoutConfirmModal 
-          onClose={() => setShowLogoutModal(false)} 
-          onConfirm={handleLogout} 
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onClose={() => setShowLogoutModal(false)}
+          onConfirm={handleLogout}
         />
       )}
     </>

@@ -4,12 +4,90 @@ import { useState } from "react";
 import { X, Sparkles } from "lucide-react";
 
 export const REFERENCE_IMAGES = [
-  { id: "r1", name: "Cyberpunk Neon", category: "Sci-Fi", thumb: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop", prompt: "Cyberpunk neon city portrait, electric blue and magenta lighting, high tech armor, photorealistic 8k, rain reflections, dramatic shadows" },
-  { id: "r2", name: "Renaissance Oil", category: "Classic", thumb: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?q=80&w=400&auto=format&fit=crop", prompt: "Classical renaissance oil painting portrait, dramatic chiaroscuro lighting, museum quality, fine brush strokes, old master technique" },
-  { id: "r3", name: "Cosmic Void", category: "Abstract", thumb: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=400&auto=format&fit=crop", prompt: "Deep space cosmic portrait, nebula colors, stars, ethereal glow, otherworldly beauty, digital art 8k" },
-  { id: "r4", name: "Gold Baroque", category: "Classic", thumb: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=400&auto=format&fit=crop", prompt: "Baroque golden portrait, ornate gilded frame, Rembrandt lighting, deep shadows, luxurious fabrics, oil painting texture" },
-  { id: "r5", name: "Neon Samurai", category: "Anime", thumb: "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?q=80&w=400&auto=format&fit=crop", prompt: "Futuristic neon samurai warrior, Japanese aesthetic, cherry blossoms, neon lights, anime style, katana, dramatic pose" },
-  { id: "r6", name: "Holographic Soul", category: "Sci-Fi", thumb: "https://images.unsplash.com/photo-1519120944692-1a8d8cfc107f?q=80&w=400&auto=format&fit=crop", prompt: "Holographic translucent figure, prismatic light refraction, futuristic digital ghost, iridescent colors, 8k render" },
+  { 
+    id: "r1", 
+    name: "Cyberpunk Neon", 
+    category: "Sci-Fi", 
+    thumb: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Cyberpunk neon portrait, electric blue and magenta lighting, high tech aesthetic, photorealistic 8k, rain reflections on face, dramatic shadows, futuristic city background, cinematic close-up portrait"
+  },
+  { 
+    id: "r2", 
+    name: "Renaissance Oil", 
+    category: "Classic", 
+    thumb: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Classical renaissance oil painting portrait, dramatic chiaroscuro lighting, museum quality, fine brush strokes, old master technique, rich warm tones, painted portrait on canvas"
+  },
+  { 
+    id: "r3", 
+    name: "Cosmic Void", 
+    category: "Abstract", 
+    thumb: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Deep space cosmic portrait, nebula colors swirling around face, stars in background, ethereal glow, otherworldly beauty, digital art 8k, face illuminated by galaxy light"
+  },
+  { 
+    id: "r4", 
+    name: "Gold Baroque", 
+    category: "Classic", 
+    thumb: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Baroque golden portrait, ornate gilded background, Rembrandt lighting, deep dramatic shadows, luxurious rich fabrics, oil painting texture, warm amber tones, museum quality fine art portrait"
+  },
+  { 
+    id: "r5", 
+    name: "Neon Samurai", 
+    category: "Anime", 
+    thumb: "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Futuristic neon samurai portrait, Japanese aesthetic, cherry blossoms in background, pink and purple neon lights on face, anime inspired style, dramatic warrior pose, close-up portrait"
+  },
+  { 
+    id: "r6", 
+    name: "Holographic Soul", 
+    category: "Sci-Fi", 
+    thumb: "https://images.unsplash.com/photo-1519120944692-1a8d8cfc107f?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Holographic translucent portrait, prismatic light refraction across face, futuristic digital effect, iridescent rainbow colors, glowing edges, 8k ultra detailed render, sci-fi aesthetic"
+  },
+  { 
+    id: "r7", 
+    name: "Neon Drifter", 
+    category: "Sci-Fi", 
+    thumb: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Cinematic cyberpunk portrait, glowing neon street lights reflecting on face, moody synthwave aesthetic, pink and blue neon rim lighting, urban night background, 8k resolution, highly detailed photography"
+  },
+  { 
+    id: "r8", 
+    name: "Dark Academia", 
+    category: "Classic", 
+    thumb: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Dark academia portrait, classic tailored vintage suit, moody library background with warm candlelight, intellectual aesthetic, sharp editorial portrait, muted earth tones, 8k photography"
+  },
+  { 
+    id: "r9", 
+    name: "Nordic Warrior", 
+    category: "Fantasy", 
+    thumb: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Epic nordic warrior portrait, rugged battle-worn aesthetic, thick fur collar armor, dramatic cinematic rim lighting, stormy sky background, fantasy RPG style, intense powerful gaze, unreal engine 5 render, highly detailed"
+  },
+  { 
+    id: "r10", 
+    name: "Vintage Casual", 
+    category: "Classic", 
+    thumb: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Vintage casual portrait, relaxed smile, warm natural lighting, beige neutral background, casual stylish clothing, happy and relaxed expression, soft film photography aesthetic, 35mm film grain"
+  },
+  { 
+    id: "r11", 
+    name: "Solarpunk", 
+    category: "Sci-Fi", 
+    thumb: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Solarpunk portrait, lush green nature merged with futuristic technology, golden sunlight, flowers and plants integrated into clothing, bright optimistic color palette, utopian aesthetic, 8k photorealistic"
+  },
+  { 
+    id: "r12", 
+    name: "Ink Sketch", 
+    category: "Abstract", 
+    thumb: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?q=80&w=400&auto=format&fit=crop", 
+    prompt: "Detailed ink sketch portrait, fine pen line art, crosshatching shading technique, high contrast black and white, artbook quality illustration, detailed facial features drawn in ink"
+  },
 ];
 
 const CATEGORIES = ["All", "Sci-Fi", "Classic", "Abstract", "Anime", "Fantasy", "Retro"];
