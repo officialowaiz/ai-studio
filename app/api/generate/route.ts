@@ -4,17 +4,21 @@ import { createClient } from '@supabase/supabase-js';
 // We can lower the maxDuration because the function no longer waits 60+ seconds for the image!
 export const maxDuration = 30; 
 
-// Initialize Supabase client with the Service Role Key to bypass RLS for server-side inserts
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
-);
+// ⚠️ REMOVED createClient from up here!
 
 export async function POST(request: Request) {
   try {
+    // ✅ MOVED IT INSIDE THE FUNCTION
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY! 
+    );
+
     console.log("=== STARTING ASYNC FACE SWAP JOB ===");
     const body = await request.json();
     const { sourceImage, styleReference, userId } = body;
+    
+    // ... the rest of your code stays exactly the same
 
     // Safety check from your old code
     if (!process.env.WAVESPEED_API_KEY) {
