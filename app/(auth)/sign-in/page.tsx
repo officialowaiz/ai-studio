@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, Suspense, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import SearchParamsHandler from "./SearchParamsHandler";
 import Link from "next/link";
-import { sendOtp, verifyOtpAndCheckProfile, completeOnboarding, signInWithGoogle } from "@/app/actions/auth";
+import { sendOtp, verifyOtpAndCheckProfile, completeOnboarding } from "@/app/actions/auth";
 import { useRouter } from "next/navigation"; // Removed useSearchParams from here!
 
 import {
@@ -44,15 +45,35 @@ export default function AdvancedAuthPage() {
   }, []); // Empty dependency array is correct here
 
   // 3. GOOGLE LOGIN HANDLER
+  // 3. GOOGLE LOGIN HANDLER (Client-Side)
   const handleGoogleLogin = async () => {
     setIsProcessing(true);
-    const response = await signInWithGoogle();
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (response.success && response.url) {
-      // Redirect the browser to the Google login screen
-      window.location.href = response.url;
-    } else {
-      alert("Failed to connect to Google: " + response.error);
+    if (!supabaseUrl || !supabaseAnonKey) {
+      alert("Supabase environment variables are not configured.");
+      setIsProcessing(false);
+      return;
+    }
+
+    // Initialize the Supabase client directly in the browser
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    // Trigger the OAuth login directly from the frontend
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Use your live explicit redirect URL
+        redirectTo: 'https://promptno.vercel.app/auth/callback', 
+      },
+    });
+
+    // NOTE: If successful, Supabase automatically redirects the browser to Google!
+    // We only need to handle the error state.
+    if (error) {
+      alert("Failed to connect to Google: " + error.message);
       setIsProcessing(false);
     }
   };
