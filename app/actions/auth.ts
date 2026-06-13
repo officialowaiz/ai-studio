@@ -108,8 +108,8 @@ export async function signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // This tells Google exactly where to send the user after a successful login
-        redirectTo: `${window.location.origin}/auth/callback`
+        // This asks Vercel for the live URL, so 'window' never crashes the server!
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
       },
     });
 
