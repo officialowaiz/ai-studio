@@ -6,11 +6,11 @@ import { createClient } from "@/utils/supabase/server";
 export async function sendOtp(email: string) {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: true, 
+        shouldCreateUser: true,
       },
     });
 
@@ -45,10 +45,10 @@ export async function verifyOtpAndCheckProfile(email: string, otp: string) {
       .eq('id', data.user.id)
       .maybeSingle();
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       userId: data.user.id,
-      onboardingComplete: profile?.onboarding_completed || false 
+      onboardingComplete: profile?.onboarding_completed || false
     };
   } catch (err: any) {
     return { success: false, error: err.message || "An unexpected error occurred." };
@@ -57,7 +57,7 @@ export async function verifyOtpAndCheckProfile(email: string, otp: string) {
 
 // 3. Update the profile and mark onboarding as complete
 export async function completeOnboarding(
-  userId: string, 
+  userId: string,
   data: { fullName: string; role: string; terms: boolean }
 ) {
   try {
@@ -84,37 +84,37 @@ export async function completeOnboarding(
 export async function signInWithGoogle() {
   try {
     const supabase = await createClient();
-    
+
     // This tells Google where to send the user after they log in.
     // In production, you will change this to https://upmocks.com/auth/callback
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     // Define a helper to get the right URL whether you are local or live on Vercel
-const getURL = () => {
-  let url =
-    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
-    'http://localhost:3000/'
-  
-  // Make sure to include `https://` when not localhost.
-  url = url.includes('http') ? url : `https://${url}`
-  
-  // Make sure to include a trailing `/`.
-  url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
-  return url
-}
+    const getURL = () => {
+      let url =
+        process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
+        process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+        'http://localhost:3000/'
 
-// Then use it in your function:
-const { data, error } = await supabase.auth.signInWithOAuth({
-  provider: 'google',
-  options: {
-    // This tells Google exactly where to send the user after a successful login
-    redirectTo: 'https://promptno.vercel.app/auth/callback', 
-  },
-});
+      // Make sure to include `https://` when not localhost.
+      url = url.includes('http') ? url : `https://${url}`
+
+      // Make sure to include a trailing `/`.
+      url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
+      return url
+    }
+
+    // Then use it in your function:
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // This tells Google exactly where to send the user after a successful login
+        redirectTo: `${window.location.origin}/auth/callback`
+      },
+    });
 
     if (error) return { success: false, error: error.message };
-    
+
     // Return the Google URL so our frontend can redirect the user
     return { success: true, url: data.url };
   } catch (err: any) {
